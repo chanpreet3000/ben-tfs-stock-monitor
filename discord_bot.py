@@ -31,7 +31,7 @@ class Bot(discord.Client):
 client = Bot()
 
 
-@client.tree.command(name="sd-add-product", description="Add a product URL to watch on Superdrug")
+@client.tree.command(name="tfs-add-product", description="Add a product URL to watch on The Fragrance Shop")
 async def add_product(interaction: discord.Interaction, url: str):
     Logger.info(f"Received add product request for URL: {url}")
     await interaction.response.defer(thinking=True)
@@ -81,7 +81,8 @@ async def add_product(interaction: discord.Interaction, url: str):
     await interaction.followup.send(embed=embed)
 
 
-@client.tree.command(name="sd-remove-product", description="Remove a product URL from the watch list on Superdrug")
+@client.tree.command(name="tfs-remove-product",
+                     description="Remove a product URL from the watch list on The Fragrance Shop")
 async def remove_product(interaction: discord.Interaction, product_url: str):
     Logger.info(f"Received remove product request for URL: {product_url}")
     await interaction.response.defer(thinking=True)
@@ -110,7 +111,7 @@ async def remove_product(interaction: discord.Interaction, product_url: str):
     await interaction.followup.send(embed=embed)
 
 
-@client.tree.command(name="sd-list-products", description="Show all watched product URLs on Superdrug")
+@client.tree.command(name="tfs-list-products", description="Show all watched product URLs on The Fragrance Shop")
 async def list_products(interaction: discord.Interaction):
     Logger.info("Received list products request")
     await interaction.response.defer(thinking=True)
@@ -141,8 +142,8 @@ async def list_products(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed)
 
 
-@client.tree.command(name="sd-add-channel",
-                     description="Add a notification channel for Superdrug product stock updates")
+@client.tree.command(name="tfs-add-channel",
+                     description="Add a notification channel for The Fragrance Shop product stock updates")
 @app_commands.checks.has_permissions(administrator=True)
 async def add_channel(interaction: discord.Interaction, channel: discord.TextChannel):
     Logger.info(f"Received add channel request for channel ID: {channel.id}")
@@ -172,8 +173,8 @@ async def add_channel(interaction: discord.Interaction, channel: discord.TextCha
     await interaction.followup.send(embed=embed)
 
 
-@client.tree.command(name="sd-remove-channel",
-                     description="Remove a notification channel for Superdrug product stock updates")
+@client.tree.command(name="tfs-remove-channel",
+                     description="Remove a notification channel for The Fragrance Shop product stock updates")
 @app_commands.checks.has_permissions(administrator=True)
 async def remove_channel(interaction: discord.Interaction, channel: discord.TextChannel):
     Logger.info(f"Received remove channel request for channel ID: {channel.id}")
@@ -203,8 +204,8 @@ async def remove_channel(interaction: discord.Interaction, channel: discord.Text
     await interaction.followup.send(embed=embed)
 
 
-@client.tree.command(name="sd-list-channels",
-                     description="Show all notification channels for Superdrug product stock updates")
+@client.tree.command(name="tfs-list-channels",
+                     description="Show all notification channels for The Fragrance Shop product stock updates")
 async def list_channels(interaction: discord.Interaction):
     Logger.info("Received list channels request")
     await interaction.response.defer(thinking=True)
@@ -242,7 +243,7 @@ async def list_channels(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed)
 
 
-@client.tree.command(name="sd-check-stock", description="Check the stock level of a product on Superdrug.com")
+@client.tree.command(name="tfs-check-stock", description="Check the stock level of a product on The Fragrance Shop")
 async def check_stock(interaction: discord.Interaction, product_url: str):
     Logger.info(f"Received check stock request {product_url}")
     await interaction.response.defer()
