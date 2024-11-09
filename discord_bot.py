@@ -37,7 +37,7 @@ async def add_product(interaction: discord.Interaction, url: str):
     await interaction.response.defer(thinking=True)
 
     try:
-        embed, product_data = await fetch_product_data(url, max_retries=5)
+        embed, product_data = await fetch_product_data(url, max_retries=3)
         if product_data is None:
             await interaction.followup.send(
                 content="❌ Failed to fetch product data. Please make sure the URL is correct or try again."
@@ -63,6 +63,7 @@ async def add_product(interaction: discord.Interaction, url: str):
                 description=f"Started watching product",
                 color=0x00ff00
             )
+            embed.set_thumbnail(url=product_data.image_url)
         else:
             embed = discord.Embed(
                 title=f"⚠️ {option_to_watch.name}",
@@ -70,6 +71,7 @@ async def add_product(interaction: discord.Interaction, url: str):
                 description=f"This product is already being watched",
                 color=0xffcc00
             )
+            embed.set_thumbnail(url=product_data.image_url)
     except Exception as e:
         Logger.error(f'Error adding product: {url}', e)
         embed = discord.Embed(
@@ -249,7 +251,7 @@ async def check_stock(interaction: discord.Interaction, product_url: str):
     await interaction.response.defer()
 
     try:
-        embed, product = await fetch_product_data(product_url, max_retries=5)
+        embed, product = await fetch_product_data(product_url, max_retries=3)
 
         if product is None:
             await interaction.followup.send(

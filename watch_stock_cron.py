@@ -1,9 +1,16 @@
+import asyncio
+import os
 import discord
 
 from datetime import datetime
 from DatabaseManager import DatabaseManager
 from Logger import Logger
 from utils import fetch_product_data
+from dotenv import load_dotenv
+
+load_dotenv()
+
+watch_product_cron_delay_seconds = int(os.getenv('WATCH_PRODUCT_CRON_DELAY_SECONDS', 60 * 60))  # 1 hour
 
 
 async def watch_stock_cron(client: discord.Client):
@@ -59,6 +66,9 @@ async def watch_stock_cron(client: discord.Client):
             except Exception as e:
                 Logger.error(f"Error processing product {product_url}", e)
                 continue
+            finally:
+                Logger.debug('Sleeping before next product check')
+                await asyncio.sleep(watch_product_cron_delay_seconds)
 
     except Exception as e:
         Logger.error(f"Critical error in watch_stock_cron", e)
