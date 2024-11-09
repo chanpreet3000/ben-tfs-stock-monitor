@@ -66,7 +66,7 @@ def get_product_embed(product_data: ProductData) -> discord.Embed:
 
 
 async def get_fresh_cookies(user_agent: str, url: str) -> Dict:
-    driver = Driver(uc=True, agent=user_agent)
+    driver = Driver(uc=True, agent=user_agent, no_sandbox=True)
     driver.uc_open_with_reconnect(url, 3)
     driver.uc_gui_click_captcha()
 
