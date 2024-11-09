@@ -1,31 +1,20 @@
 import asyncio
-import random
-
+import undetected_chromedriver as uc
 import discord
 import pytz
 import json
 
+from fake_useragent import UserAgent
 from datetime import datetime
-from typing import Dict, Tuple
-from seleniumbase import Driver
-
-import requests
+from typing import Tuple
+from selenium_stealth import stealth
 from dotenv import load_dotenv
 
 from DatabaseManager import DatabaseManager
-from bs4 import BeautifulSoup
-
 from Logger import Logger
 from models import ProductData, ProductOptions
 
 load_dotenv()
-
-WINDOWS_USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 OPR/108.0.0.0',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Vivaldi/6.5.3206.63'
-]
 
 db = DatabaseManager()
 
@@ -65,66 +54,38 @@ def get_product_embed(product_data: ProductData) -> discord.Embed:
     return embed
 
 
-async def get_fresh_cookies(user_agent: str, url: str) -> Dict:
-    driver = Driver(uc=True, agent=user_agent, no_sandbox=True)
-    driver.uc_open_with_reconnect(url, 3)
-    driver.uc_gui_click_captcha()
-
-    driver.uc_click('#onetrust-accept-btn-handler', by="css selector",
-                    timeout=30, reconnect_time=None)
-
-    cookies = driver.get_cookies()
-    driver.quit()
-
-    cookie_dict = {}
-    for cookie in cookies:
-        cookie_dict[cookie['name']] = cookie['value']
-    return cookie_dict
-
-
 async def fetch_product_data(url: str, max_retries: int = 3) -> Tuple[discord.Embed, ProductData | None]:
     for attempt in range(max_retries):
+        ua = UserAgent()
+        user_agent = ua.random
+        chrome_options = uc.ChromeOptions()
+        chrome_options.add_argument("--start-maximized")
+        chrome_options.add_argument("user-agent={}".format(user_agent))
+        driver = uc.Chrome(options=chrome_options)
         try:
-            user_agent = random.choice(WINDOWS_USER_AGENTS)
-            cookies = await get_fresh_cookies(user_agent, url)
-            headers = {
-                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                'accept-language': 'en-US,en;q=0.7',
-                'cache-control': 'max-age=0',
-                'priority': 'u=0, i',
-                'sec-ch-ua': '"Chromium";v="130", "Brave";v="130", "Not?A_Brand";v="99"',
-                'sec-ch-ua-arch': '"x86"',
-                'sec-ch-ua-bitness': '"64"',
-                'sec-ch-ua-full-version-list': '"Chromium";v="130.0.0.0", "Brave";v="130.0.0.0", "Not?A_Brand";v="99.0.0.0"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-model': '""',
-                'sec-ch-ua-platform': '"Windows"',
-                'sec-ch-ua-platform-version': '"15.0.0"',
-                'sec-fetch-dest': 'document',
-                'sec-fetch-mode': 'navigate',
-                'sec-fetch-site': 'same-origin',
-                'sec-fetch-user': '?1',
-                'sec-gpc': '1',
-                'upgrade-insecure-requests': '1',
-                'user-agent': user_agent,
+            stealth(driver,
+                    languages=["en-US", "en"],
+                    vendor="Google Inc.",
+                    platform="Win32",
+                    webgl_vendor="Intel Inc.",
+                    renderer="Intel Iris OpenGL Engine",
+                    fix_hairline=True
+                    )
 
-            }
+            driver.get(url)
+            await asyncio.sleep(5)
 
-            response = requests.get(
-                url,
-                cookies=cookies,
-                headers=headers,
-            )
+            # Find script tag containing stockLevel using JavaScript
+            stock_script = driver.execute_script("""
+                return Array.from(document.getElementsByTagName('script')).find(
+                    script => script.textContent && script.textContent.includes('currentStock')
+                ).textContent;
+            """)
 
-            soup = BeautifulSoup(response.text, 'html.parser')
+            if not stock_script:
+                raise Exception("Could not find script containing stock data")
 
-            # Find script tag containing stockLevel
-            stock_script = None
-            for script in soup.find_all('script'):
-                if script.string and 'currentStock' in script.string:
-                    stock_script = script.string
-                    break
-
+            # Clean up the JSON data
             json_data = stock_script.replace('\n', '')
             json_data = json_data.replace('\\\\\\"', "'")
             json_data = json_data.replace('\\"', '"')
@@ -155,11 +116,10 @@ async def fetch_product_data(url: str, max_retries: int = 3) -> Tuple[discord.Em
             else:
                 for variant in variants:
                     name = variant['productName']
-
                     price = variant['price']['formatted']['withTax']
                     stock_level = variant['currentStock']
                     is_in_stock = stock_level > 0
-                    url = f"https://www.thefragranceshop.co.uk/{variant['slug']}"
+                    variant_url = f"https://www.thefragranceshop.co.uk/{variant['slug']}"
                     variant_code = variant['stockCode']
                     options.append(
                         ProductOptions(
@@ -168,7 +128,7 @@ async def fetch_product_data(url: str, max_retries: int = 3) -> Tuple[discord.Em
                             is_in_stock=is_in_stock,
                             product_code=variant_code,
                             formatted_price=price,
-                            product_url=url,
+                            product_url=variant_url,
                         ))
 
             product_data = ProductData(
@@ -182,10 +142,12 @@ async def fetch_product_data(url: str, max_retries: int = 3) -> Tuple[discord.Em
             return get_product_embed(product_data), product_data
         except Exception as e:
             Logger.error(f'Attempt {attempt + 1} failed for {url}', e)
+        finally:
+            driver.quit()
 
     Logger.error(f'Error fetching product data from {url}')
     return discord.Embed(
         title='Error',
-        description=f'Failed to fetch product data from {url}.  Please make sure the url is correct',
+        description=f'Failed to fetch product data from {url}. Please make sure the url is correct',
         color=0xff0000
     ), None
