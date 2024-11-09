@@ -4,6 +4,7 @@ import discord
 import pytz
 import json
 
+from pyvirtualdisplay import Display
 from fake_useragent import UserAgent
 from datetime import datetime
 from typing import Tuple
@@ -56,6 +57,8 @@ def get_product_embed(product_data: ProductData) -> discord.Embed:
 
 async def fetch_product_data(url: str, max_retries: int = 3) -> Tuple[discord.Embed, ProductData | None]:
     for attempt in range(max_retries):
+        display = Display(visible=False, size=(1920, 1080))
+        display.start()
         ua = UserAgent()
         user_agent = ua.random
         chrome_options = uc.ChromeOptions()
@@ -143,6 +146,7 @@ async def fetch_product_data(url: str, max_retries: int = 3) -> Tuple[discord.Em
         except Exception as e:
             Logger.error(f'Attempt {attempt + 1} failed for {url}', e)
         finally:
+            display.stop()
             driver.quit()
 
     Logger.error(f'Error fetching product data from {url}')
